@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String                 @id @default(uuid())
+  email                 String                 @unique
+  displayName           String
+  photoURL              String?
+  googleId              String?                @unique
+  status                String                 @default("offline")
+  lastSeen              DateTime               @default(now())
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  
+  sentMessages          Message[]              @relation("SentMessages")
+  conversationMembers   ConversationMember[]
+  reactions             MessageReaction[]
+  permissionRequests    ServerPermissionRequest[]
+  createdConversations  Conversation[]         @relation("ConversationCreator")
+  
+  @@index([email])
+  @@index([googleId])
+}
+
+model Conversation {
+  id            String              @id @default(uuid())
+  type          String              // 'dm', 'group', 'public'
+  name          String?
+  description   String?
+  photoURL      String?
+  creatorId     String
+  isApproved    Boolean             @default(false)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  lastMessageAt DateTime?
+  
+  creator       User                @relation("ConversationCreator", fields: [creatorId], references: [id])
+  members       ConversationMember[]
+  messages      Message[]
+  channels      Channel[]
+  
+  @@index([type])
+  @@index([creatorId])
+  @@index([lastMessageAt])
+}
+
+model ConversationMember {
+  id             String       @id @default(uuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime     @default(now())
+  lastReadAt     DateTime     @default(now())
+  
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
+}
+
+model Channel {
+  id            String       @id @default(uuid())
+  serverId      String
+  name          String
+  description   String?
+  type          String       @default("text")
+  position      Int          @default(0)
+  createdAt     DateTime     @default(now())
+  
+  server        Conversation @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  messages      Message[]
+  
+  @@index([serverId])
+}
+
+model Message {
+  id             String            @id @default(uuid())
+  conversationId String
+  channelId      String?
+  senderId       String
+  content        String
+  type           String            @default("text")
+  fileUrl        String?
+  fileName       String?
+  fileSize       Int?
+  isEdited       Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  
+  conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  channel        Channel?          @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender         User              @relation("SentMessages", fields: [senderId], references: [id])
+  reactions      MessageReaction[]
+  
+  @@index([conversationId])
+  @@index([channelId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}
+
+model ServerPermissionRequest {
+  id                String   @id @default(uuid())
+  userId            String
+  userEmail         String
+  serverName        String
+  serverDescription String
+  status            String   @default("pending")
+  adminEmail        String
+  conversationId    String?
+  requestedAt       DateTime @default(now())
+  resolvedAt        DateTime?
+  
+  user              User     @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([status])
+}
