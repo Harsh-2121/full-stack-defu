@@ -16,7 +16,7 @@
     "build:client": "cd client && npm run build",
     "build:server": "cd server && npm run build",
     "start": "cd server && npm start",
-    "setup": "npm install && cd client && npm install && cd ../server && npm install && cd ../shared && npm install"
+    "setup": "npm install && cd client && npm install && cd ../server && npm install && cd ../shared && npm install",
     "postinstall": "cd server && prisma generate"
   },
   "devDependencies": {
